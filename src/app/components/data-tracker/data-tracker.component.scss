@@ -1,0 +1,43 @@
+/* Center the form card in the middle of the page */
+.container {
+    margin-top: 50px;
+  }
+
+  .map-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 30px;
+  }
+  
+  .map-frame {
+    border: 2px solid black;
+    height: 100%;
+  }
+  
+  .card {
+    height: 100%;
+  }
+  
+  #map {
+    min-height: 100px;
+    width: 100%;
+  }
+
+  table.table {
+    margin-top: 20px;
+}
+
+  .text-danger {
+    margin-top: 5px;
+  }
+
+  .btn-group .btn {
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .btn-group .btn:hover {
+    transform: translateY(-2px);
+  }

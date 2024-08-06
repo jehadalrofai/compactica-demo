@@ -1,0 +1,76 @@
+<div class="container mt-5">
+  <!-- Map Section -->
+  <div class="row mb-4" *ngIf="selectedDataSource === 1 || selectedDataSource === 3">
+    <div class="col-md-12">
+      <h4>Map View</h4>
+      <div id="map" style="height: 500px;" class="mt-3"></div>
+    </div>
+  </div>
+
+  <!-- Control Buttons -->
+  <div class="row mb-4" *ngIf="currentGPSId || currentAccelerometerId">
+    <div class="col-md-12 d-flex justify-content-center">
+      <div class="btn-group btn-group-lg" role="group">
+        <button class="btn btn-primary" (click)="startSimulation()" *ngIf="!isRunning">
+          <i class="fas fa-play"></i> {{ startButtonText }}
+        </button>
+        <button class="btn btn-secondary" (click)="stopSimulation()" *ngIf="isRunning">
+          <i class="fas fa-stop"></i> Stop
+        </button>
+        <button class="btn btn-danger" (click)="resetSimulation()">
+          <i class="fas fa-redo"></i> Reset
+        </button>
+        <button class="btn btn-warning ms-2" *ngIf="!isAutoSync" (click)="syncData()" 
+                [disabled]="disableSyncButton">
+          <i class="fas fa-sync-alt"></i> Sync
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Data Table -->
+  <div class="row" *ngIf="combinedReadings.length > 0">
+    <div class="col-md-12">
+      <h4>Live Data</h4>
+      <table class="table table-bordered table-hover table-striped">
+        <thead class="thead-dark">
+          <tr>
+            <th>#</th>
+            <th>Reading Time</th>
+            <ng-container *ngIf="selectedDataSource === 1 || selectedDataSource === 3">
+              <th>Longitude</th>
+              <th>Latitude</th>
+              <th>Altitude</th>
+            </ng-container>
+            <ng-container *ngIf="selectedDataSource === 2 || selectedDataSource === 3">
+              <th>Accelerometer X</th>
+              <th>Accelerometer Y</th>
+              <th>Accelerometer Z</th>
+            </ng-container>
+            <th>Sync Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of combinedReadings; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>{{ data.dt }}</td>
+            <ng-container *ngIf="data.type === 'gps'">
+              <td>{{ data.lng }}</td>
+              <td>{{ data.lat }}</td>
+              <td>{{ data.alt }}</td>
+            </ng-container>
+            <ng-container *ngIf="data.type === 'accelerometer'">
+              <td>{{ data.x }}</td>
+              <td>{{ data.y }}</td>
+              <td>{{ data.z }}</td>
+            </ng-container>
+            <td>
+              <i *ngIf="data.isSynced" class="fas fa-check text-success"></i>
+              <i *ngIf="!data.isSynced" class="fas fa-times text-danger"></i>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

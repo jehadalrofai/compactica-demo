@@ -1,0 +1,28 @@
+<div class="container mt-5">
+  <div class="accordion" id="gps-accordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="data-config-heading">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#data-config-collapse" aria-expanded="true" aria-controls="data-config-collapse">
+          Configurations
+        </button>
+      </h2>
+      <div id="data-config-collapse" class="accordion-collapse collapse show" aria-labelledby="data-config-heading" data-bs-parent="#gps-accordion">
+        <div class="accordion-body">
+          <app-data-config></app-data-config>
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="data-tracker-heading">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#data-tracker-collapse" aria-expanded="true" aria-controls="data-tracker-collapse">
+          View Live Data
+        </button>
+      </h2>
+      <div id="data-tracker-collapse" class="accordion-collapse collapse show" aria-labelledby="data-tracker-heading" data-bs-parent="#gps-accordion">
+        <div class="accordion-body">
+          <app-data-tracker></app-data-tracker>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

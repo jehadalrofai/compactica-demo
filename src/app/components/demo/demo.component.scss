@@ -1,0 +1,33 @@
+.accordion-button {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    color: #333;
+  }
+  
+  .accordion-button:focus {
+    box-shadow: none;
+  }
+  
+  .accordion-item {
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    border-radius: 5px;
+  }
+  
+  .accordion-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .accordion-body {
+    padding: 20px;
+  }
+  
+  .accordion-button.collapsed {
+    background-color: #fff;
+    color: #007bff;
+  }
+  
+  .accordion-button.collapsed:hover {
+    background-color: #e9ecef;
+  }
+  
