@@ -8,14 +8,16 @@ import { routes } from './app.routes';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
+    provideRouter(routes), // This configures the routes
     provideHttpClient(),
     importProvidersFrom(
-      BrowserAnimationsModule // Import BrowserAnimationsModule correctly
+      BrowserAnimationsModule
     ),
     provideToastr({
       timeOut: 5000,
       positionClass: 'toast-bottom-right',
+      closeButton: true,
+      tapToDismiss: true,
     }),
   ]
 };

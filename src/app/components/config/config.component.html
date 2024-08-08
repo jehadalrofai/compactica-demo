@@ -1,12 +1,12 @@
 <div class="row">
   <div class="col-md-12">
-    <form [formGroup]="routeForm" (ngSubmit)="onSubmit()" id="routeFormId">
+    <form [formGroup]="configForm" (ngSubmit)="onSubmit()" id="configFormId">
       <div class="mb-3">
         <label for="dataSource" class="form-label">Data Source</label>
         <select id="dataSource" class="form-select" formControlName="dataSource" (change)="onDataSourceChange()">
-          <option value="1">GPS only</option>
-          <option value="2">Accelerometer only</option>
-          <option value="3">Both</option>
+          <option value=1>GPS only</option>
+          <option value=2>Accelerometer only</option>
+          <option value=3>Both</option>
         </select>
       </div>
 
@@ -14,7 +14,7 @@
       <div class="mb-3" *ngIf="showGpsSensorId">
         <label for="gpsSensorId" class="form-label">GPS Sensor ID</label>
         <input type="text" id="gpsSensorId" class="form-control" formControlName="gpsSensorId" placeholder="Enter GPS Sensor ID">
-        <div *ngIf="routeForm.get('gpsSensorId')?.invalid && routeForm.get('gpsSensorId')?.touched" class="text-danger small">
+        <div *ngIf="configForm.get('gpsSensorId')?.invalid && configForm.get('gpsSensorId')?.touched" class="text-danger small">
           GPS Sensor ID is required.
         </div>
       </div>
@@ -23,7 +23,7 @@
       <div class="mb-3" *ngIf="showGpsSensorId">
         <label for="startPoint" class="form-label">Starting Point</label>
         <input type="text" id="startPoint" class="form-control" formControlName="startPoint" placeholder="e.g., 47.564486, -52.763695">
-        <div *ngIf="routeForm.get('startPoint')?.invalid && routeForm.get('startPoint')?.touched" class="text-danger small">
+        <div *ngIf="configForm.get('startPoint')?.invalid && configForm.get('startPoint')?.touched" class="text-danger small">
           Starting point is required in the format "lat, lon".
         </div>
       </div>
@@ -32,7 +32,7 @@
       <div class="mb-3" *ngIf="showGpsSensorId">
         <label for="destination" class="form-label">Destination</label>
         <input type="text" id="destination" class="form-control" formControlName="destination" placeholder="e.g., 47.579436, -52.738667">
-        <div *ngIf="routeForm.get('destination')?.invalid && routeForm.get('destination')?.touched" class="text-danger small">
+        <div *ngIf="configForm.get('destination')?.invalid && configForm.get('destination')?.touched" class="text-danger small">
           Destination is required in the format "lat, lon".
         </div>
       </div>
@@ -41,7 +41,7 @@
       <div class="mb-3" *ngIf="showAccelerometerSensorId">
         <label for="accelerometerSensorId" class="form-label">Accelerometer Sensor ID</label>
         <input type="text" id="accelerometerSensorId" class="form-control" formControlName="accelerometerSensorId" placeholder="Enter Accelerometer Sensor ID">
-        <div *ngIf="routeForm.get('accelerometerSensorId')?.invalid && routeForm.get('accelerometerSensorId')?.touched" class="text-danger small">
+        <div *ngIf="configForm.get('accelerometerSensorId')?.invalid && configForm.get('accelerometerSensorId')?.touched" class="text-danger small">
           Accelerometer Sensor ID is required.
         </div>
       </div>
@@ -50,7 +50,7 @@
       <div class="mb-3" *ngIf="showDuration">
         <label for="duration" class="form-label">Duration (seconds for accelerometer readings)</label>
         <input type="number" id="duration" class="form-control" formControlName="duration" placeholder="Enter duration (min 10 seconds)" min="10">
-        <div *ngIf="routeForm.get('duration')?.invalid && routeForm.get('duration')?.touched" class="text-danger small">
+        <div *ngIf="configForm.get('duration')?.invalid && configForm.get('duration')?.touched" class="text-danger small">
           Duration is required and must be at least 10 seconds when using Accelerometer only.
         </div>
       </div>
@@ -63,7 +63,7 @@
 
       <!-- Submit Button -->
       <div class="text-center">
-        <button type="submit" class="btn btn-primary w-50" [disabled]="routeForm.invalid" form="routeFormId">Submit</button>
+        <button type="submit" class="btn btn-primary w-50" [disabled]="configForm.invalid || isActive" form="configFormId">Submit</button>
       </div>
     </form>
   </div>

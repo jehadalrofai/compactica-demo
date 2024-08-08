@@ -4,3 +4,8 @@
 @import 'bootstrap/scss/mixins';
 // boostrap 5
 @import 'ngx-toastr/toastr-bs5-alert';
+
+
+.toast-success, .toast-error, .toast-warning, .toast-info {
+    color: white !important;
+  }

@@ -1,28 +1,27 @@
 <div class="container mt-5">
-  <div class="accordion" id="gps-accordion">
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="data-config-heading">
-        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#data-config-collapse" aria-expanded="true" aria-controls="data-config-collapse">
-          Configurations
-        </button>
-      </h2>
-      <div id="data-config-collapse" class="accordion-collapse collapse show" aria-labelledby="data-config-heading" data-bs-parent="#gps-accordion">
-        <div class="accordion-body">
-          <app-data-config></app-data-config>
-        </div>
-      </div>
+  <ul class="nav nav-tabs custom-nav-tabs">
+    <li class="nav-item">
+      <a class="nav-link" 
+         (click)="setActiveTab('configurations')" 
+         [class.active]="activeTab === 'configurations'">
+        Configurations
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" 
+         (click)="setActiveTab('live-data')" 
+         [class.active]="activeTab === 'live-data'">
+        View Live Data
+      </a>
+    </li>
+  </ul>
+
+  <div class="tab-content custom-tab-content mt-4">
+    <div [ngClass]="{'d-block': activeTab === 'configurations', 'd-none': activeTab !== 'configurations'}">
+      <app-config (setActiveTab)="setActiveTab($event)"></app-config>
     </div>
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="data-tracker-heading">
-        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#data-tracker-collapse" aria-expanded="true" aria-controls="data-tracker-collapse">
-          View Live Data
-        </button>
-      </h2>
-      <div id="data-tracker-collapse" class="accordion-collapse collapse show" aria-labelledby="data-tracker-heading" data-bs-parent="#gps-accordion">
-        <div class="accordion-body">
-          <app-data-tracker></app-data-tracker>
-        </div>
-      </div>
+    <div [ngClass]="{'d-block': activeTab === 'live-data', 'd-none': activeTab !== 'live-data'}">
+      <app-data-tracker (setActiveTab)="setActiveTab($event)"></app-data-tracker>
     </div>
   </div>
 </div>
