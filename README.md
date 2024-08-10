@@ -9,6 +9,16 @@ This project is a data tracking application built with Angular 18 and Node.js 22
 - Map Visualization: GPS data is visualized on an interactive map using the Leaflet library.
 - Data Synchronization: Users can manually or automatically sync collected data to the backend server.
 
+## Data Sources and Simulation
+1. GPS Data
+Route Setup: Users enter starting and destination coordinates in the configuration form.
+Route Calculation: The application uses the OSRM API to determine a suitable route between the provided coordinates.
+Simulation: When the user starts the simulation, the application calculates the movement along the route based on speed settings configured in the environment file. At each step, the new coordinates (longitude, magnitude, and altitude) are saved.
+2. Accelerometer Data
+Random Data Generation: If the accelerometer is selected as the data source (either alone or with GPS), the application generates random accelerometer readings. These readings are saved and can be synchronized with the backend.
+3. Both GPS and Accelerometer Data
+Combined Simulation: When both data sources are selected, the application simulates GPS movement along the calculated route while simultaneously generating random accelerometer readings. Both sets of data are stored and can be viewed and synced.
+
 # Usage
 
 ## Configuration
@@ -17,6 +27,8 @@ This project is a data tracking application built with Angular 18 and Node.js 22
 3- Starting Point & Destination: Provide actual coordinates in the format lat, lon to define the route for GPS data simulation.
 4- Accelerometer Sensor ID: Enter the ID for the accelerometer sensor (required if Accelerometer is selected).
 5- Auto Sync: Check this box if you want the readings to be automatically saved to the backend.
+
+
 
 ## Data Tracking
 After configuration, submit the form to start tracking data.
