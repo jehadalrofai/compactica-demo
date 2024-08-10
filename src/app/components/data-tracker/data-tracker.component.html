@@ -1,17 +1,40 @@
 <div class="container mt-5">
   <!-- Map Section -->
-  <div class="row mb-4" hidden="selectedDataSource ===2">
+  <div class="row mb-4" *ngIf="selectedDataSource === 1 || selectedDataSource === 3">
     <div class="col-md-12">
       <h4>Map View</h4>
-      <div id="map" style="height: 500px;" class="mt-3"></div>
+      <div id="map" class="mt-3"></div>
     </div>
   </div>
 
+    <!-- Last New Reading Section -->
+    <div class="row mb-4" *ngIf="combinedReadings.length > 0">
+      <div class="col-md-12">
+        <h4>Summary</h4>
+        <div class="card p-3 mb-3">
+            <p><strong>Server Time:</strong> {{ currentServerTime }}</p>
+            <p *ngIf="lastGpsReading">
+              <strong>Last Reading</strong><br>
+              <strong>Sensor Name:</strong> {{ currentGPSId }}<br>
+              <strong>Longitude:</strong> {{ lastGpsReading.lng }}<br>
+              <strong>Latitude:</strong> {{ lastGpsReading.lat }}<br>
+              <strong>Altitude:</strong> {{ lastGpsReading.alt }}
+            </p>
+            <p *ngIf="lastAccelerometerReading">
+              <strong>Sensor Name:</strong>{{ currentAccelerometerId }}<br>
+              <strong>Accelerometer X:</strong> {{ lastAccelerometerReading.x }}<br>
+              <strong>Accelerometer Y:</strong> {{ lastAccelerometerReading.y }}<br>
+              <strong>Accelerometer Z:</strong> {{ lastAccelerometerReading.z }}
+            </p>
+        </div>
+      </div>
+    </div>
+
   <!-- Control Buttons -->
-  <div class="row mb-4" *ngIf="currentGPSId || currentAccelerometerId">
+  <div class="row mb-4 pt-4" *ngIf="currentGPSId || currentAccelerometerId">
     <div class="col-md-12 d-flex justify-content-center">
       <div class="btn-group btn-group-lg" role="group">
-        <button class="btn btn-primary" (click)="startSimulation()" *ngIf="!isRunning">
+        <button class="btn btn-primary" (click)="startSimulation()" *ngIf="!isRunning && !isCompleted">
           <i class="fas fa-play"></i> {{ startButtonText }}
         </button>
         <button class="btn btn-secondary" (click)="stopSimulation()" *ngIf="isRunning">
@@ -20,9 +43,9 @@
         <button class="btn btn-danger" (click)="resetSimulation()">
           <i class="fas fa-redo"></i> Reset
         </button>
-        <button class="btn btn-warning ms-2" *ngIf="!isAutoSync" (click)="submitData()" 
+        <button class="btn btn-warning" *ngIf="!isAutoSync" (click)="submitData()" 
                 [disabled]="disableSyncButton">
-          <i class="fas fa-sync-alt"></i> Sync
+          <i class="fas fa-sync-alt"></i> Save
         </button>
       </div>
     </div>
@@ -31,46 +54,53 @@
   <!-- Live Data Table -->
   <div class="row" *ngIf="combinedReadings.length > 0">
     <div class="col-md-12">
-      <h4>Live Data</h4>
-      <table class="table table-bordered table-hover table-striped">
-        <thead class="thead-dark">
-          <tr>
-            <th>#</th>
-            <th>Reading Time</th>
-            <ng-container *ngIf="selectedDataSource === 1 || selectedDataSource === 3">
-              <th>Longitude</th>
-              <th>Latitude</th>
-              <th>Altitude</th>
-            </ng-container>
-            <ng-container *ngIf="selectedDataSource === 2 || selectedDataSource === 3">
-              <th>Accelerometer X</th>
-              <th>Accelerometer Y</th>
-              <th>Accelerometer Z</th>
-            </ng-container>
-            <th>Sync Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let data of combinedReadings; let i = index">
-            <td>{{ i + 1 }}</td>
-            <td>{{ data.dt }}</td>
-            <ng-container *ngIf="data.type === 'gps'">
-              <td>{{ data.lng }}</td>
-              <td>{{ data.lat }}</td>
-              <td>{{ data.alt }}</td>
-            </ng-container>
-            <ng-container *ngIf="data.type === 'accelerometer'">
-              <td>{{ data.x }}</td>
-              <td>{{ data.y }}</td>
-              <td>{{ data.z }}</td>
-            </ng-container>
-            <td>
-              <i *ngIf="data.isSynced" class="fas fa-check text-success"></i>
-              <i *ngIf="!data.isSynced" class="fas fa-times text-danger"></i>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <h4>Readings</h4>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover table-striped table-sm small-font">
+          <thead class="thead-dark">
+            <tr>
+              <th class="text-center">#</th>
+              <th>Reading Time</th>
+              <ng-container *ngIf="selectedDataSource === 1 || selectedDataSource === 3">
+                <th>Longitude</th>
+                <th>Latitude</th>
+                <th>Altitude</th>
+                <th>Sync Status</th>
+              </ng-container>
+              <ng-container *ngIf="selectedDataSource === 2 || selectedDataSource === 3">
+                <th>Accelerometer X</th>
+                <th>Accelerometer Y</th>
+                <th>Accelerometer Z</th>
+                <th>Sync Status</th>
+              </ng-container>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let group of getGroupedReadings(); let i = index" class="align-middle">
+              <td class="text-center">{{ i + 1 }}</td>
+              <td>{{ group.gps?.dt || group.accelerometer?.dt }}</td>
+              <ng-container *ngIf="selectedDataSource === 1 || selectedDataSource === 3">
+                <td class="text-right">{{ group.gps?.lng || 'N/A' }}</td>
+                <td class="text-right">{{ group.gps?.lat || 'N/A' }}</td>
+                <td class="text-right">{{ group.gps?.alt || 'N/A' }}</td>
+                <td class="text-center">
+                  <span *ngIf="group.gps?.isSynced" class="badge bg-success"><i class="fas fa-check"></i></span>
+                  <span *ngIf="!group.gps?.isSynced" class="badge bg-danger"><i class="fas fa-times"></i></span>
+                </td>
+              </ng-container>
+              <ng-container *ngIf="selectedDataSource === 2 || selectedDataSource === 3">
+                <td class="text-right">{{ group.accelerometer?.x || 'N/A' }}</td>
+                <td class="text-right">{{ group.accelerometer?.y || 'N/A' }}</td>
+                <td class="text-right">{{ group.accelerometer?.z || 'N/A' }}</td>
+                <td class="text-center">
+                  <span *ngIf="group.accelerometer?.isSynced" class="badge bg-success"><i class="fas fa-check"></i></span>
+                  <span *ngIf="!group.accelerometer?.isSynced" class="badge bg-danger"><i class="fas fa-times"></i></span>
+                </td>
+              </ng-container>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

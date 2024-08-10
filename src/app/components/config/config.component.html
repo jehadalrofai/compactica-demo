@@ -22,7 +22,7 @@
       <!-- Starting Point -->
       <div class="mb-3" *ngIf="showGpsSensorId">
         <label for="startPoint" class="form-label">Starting Point</label>
-        <input type="text" id="startPoint" class="form-control" formControlName="startPoint" placeholder="e.g., 47.564486, -52.763695">
+        <input type="text" id="startPoint" class="form-control" formControlName="startPoint" placeholder="Actual coordinates e.g., 47.564486, -52.763695">
         <div *ngIf="configForm.get('startPoint')?.invalid && configForm.get('startPoint')?.touched" class="text-danger small">
           Starting point is required in the format "lat, lon".
         </div>
@@ -31,7 +31,7 @@
       <!-- Destination -->
       <div class="mb-3" *ngIf="showGpsSensorId">
         <label for="destination" class="form-label">Destination</label>
-        <input type="text" id="destination" class="form-control" formControlName="destination" placeholder="e.g., 47.579436, -52.738667">
+        <input type="text" id="destination" class="form-control" formControlName="destination" placeholder="Actual coordinates e.g., 47.579436, -52.738667">
         <div *ngIf="configForm.get('destination')?.invalid && configForm.get('destination')?.touched" class="text-danger small">
           Destination is required in the format "lat, lon".
         </div>
@@ -46,19 +46,10 @@
         </div>
       </div>
 
-      <!-- Duration -->
-      <div class="mb-3" *ngIf="showDuration">
-        <label for="duration" class="form-label">Duration (seconds for accelerometer readings)</label>
-        <input type="number" id="duration" class="form-control" formControlName="duration" placeholder="Enter duration (min 10 seconds)" min="10">
-        <div *ngIf="configForm.get('duration')?.invalid && configForm.get('duration')?.touched" class="text-danger small">
-          Duration is required and must be at least 10 seconds when using Accelerometer only.
-        </div>
-      </div>
-
       <!-- Auto Sync Checkbox -->
       <div class="mb-3">
         <input type="checkbox" id="isAutoSync" class="form-check-input" formControlName="isAutoSync" style="margin-right: 10px;">
-        <label for="isAutoSync" class="form-label">Auto Sync</label>
+        <label for="isAutoSync" class="form-label">Auto Save Readings</label>
       </div>
 
       <!-- Submit Button -->

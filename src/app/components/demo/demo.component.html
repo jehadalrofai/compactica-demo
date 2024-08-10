@@ -17,11 +17,11 @@
   </ul>
 
   <div class="tab-content custom-tab-content mt-4">
-    <div [ngClass]="{'d-block': activeTab === 'configurations', 'd-none': activeTab !== 'configurations'}">
+    <ng-container *ngIf="activeTab === 'configurations'">
       <app-config (setActiveTab)="setActiveTab($event)"></app-config>
-    </div>
-    <div [ngClass]="{'d-block': activeTab === 'live-data', 'd-none': activeTab !== 'live-data'}">
+    </ng-container>
+    <ng-container *ngIf="activeTab === 'live-data'">
       <app-data-tracker (setActiveTab)="setActiveTab($event)"></app-data-tracker>
-    </div>
+    </ng-container>
   </div>
 </div>

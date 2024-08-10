@@ -6,6 +6,7 @@ import { OsrmService } from '../../services/osrm.service';
 import { DataConfigService } from '../../services/data-config.service';
 import { OsrmResponse } from '../../models/osrm-response.model';
 import { Subscription } from 'rxjs';
+import { RouteData } from '../../models/route-data.model';
 
 @Component({
   selector: 'app-config',
@@ -31,19 +32,24 @@ export class ConfigComponent implements OnInit, OnDestroy {
     private osrmService: OsrmService,
     private toastr: ToastrService
   ) {
+    // Initialize the form with default values and validators
     this.configForm = this.fb.group({
-      dataSource: [1, Validators.required], // Default to GPS only
+      dataSource: [1, Validators.required],
       gpsSensorId: [''],
       accelerometerSensorId: [''],
       startPoint: [''],
       destination: [''],
       isAutoSync: [false],
-      duration: [0, Validators.required],
     });
-
+    
+    // Set visibility of form fields based on the data source value
     this.updateVisibility(this.configForm.get('dataSource')?.value);
   }
 
+  /**
+   * Lifecycle hook that is called after Angular has initialized all data-bound properties.
+   * Sets up subscriptions to observe changes in the form's state and other relevant observables.
+   */
   ngOnInit() {
     this.subscriptions.add(
       this.dataConfigService.isActive.subscribe((isActive) => {
@@ -54,21 +60,39 @@ export class ConfigComponent implements OnInit, OnDestroy {
     this.subscriptions.add(
       this.dataConfigService.clearForm.subscribe((clear) => {
         if (clear) {
-          this.configForm.reset(); // Clear the form
+          this.configForm.reset({
+            dataSource: 1,
+            gpsSensorId: '',
+            accelerometerSensorId: '',
+            startPoint: '',
+            destination: '',
+            isAutoSync: false,
+          });
         }
       })
     );
   }
 
+  /**
+   * Lifecycle hook that is called when the component is destroyed.
+   * Cleans up any subscriptions to prevent memory leaks.
+   */
   ngOnDestroy() {
     this.subscriptions.unsubscribe();
   }
 
+  /**
+   * Handles changes to the data source selection and updates the visibility of relevant form fields.
+   */
   public onDataSourceChange(): void {
     const dataSourceValue = this.configForm.get('dataSource')?.value;
     this.updateVisibility(+dataSourceValue);
   }
 
+  /**
+   * Handles form submission. Validates the form and triggers route generation or simulation
+   * based on the selected data source.
+   */
   public onSubmit(): void {
     if (this.configForm.disabled) return;
 
@@ -76,7 +100,7 @@ export class ConfigComponent implements OnInit, OnDestroy {
     const dataSource = +formValues.dataSource;
     const gpsSensorId = formValues.gpsSensorId ?? '';
     const accelerometerSensorId = formValues.accelerometerSensorId ?? '';
-    const duration = dataSource === 2 ? formValues.duration : 0;
+    const isAutoSync = formValues.isAutoSync;
 
     if (this.isActive) {
       this.toastr.error('A route is already in progress. Please wait for it to finish or reset it before starting a new one.', 'Error');
@@ -96,7 +120,16 @@ export class ConfigComponent implements OnInit, OnDestroy {
 
               if (distance <= 3000) {
                 const coordinates = response.routes[0].geometry.coordinates;
-                this.dataConfigService.updateRouteData(dataSource, gpsSensorId, accelerometerSensorId, duration, startPoint, destination, coordinates);
+                const routeData: RouteData = {
+                  dataSource: dataSource,
+                  isAutoSync: isAutoSync,
+                  gpsSensorId: gpsSensorId,
+                  accelerometerSensorId: accelerometerSensorId,
+                  start: startPoint,
+                  destination: destination,
+                  coordinates: coordinates
+                };
+                this.dataConfigService.updateRouteData(routeData);
                 this.toastr.success(`Location is valid! Distance: ${(distance / 1000).toFixed(2)} km`, 'Success');
                 this.dataConfigService.updateIsActive(true);
                 this.setActiveTab.emit('live-data');
@@ -112,19 +145,38 @@ export class ConfigComponent implements OnInit, OnDestroy {
           }
         );
       } else {
-        this.dataConfigService.updateRouteData(dataSource, gpsSensorId, accelerometerSensorId, duration);
-        this.toastr.success(`Accelerometer data source selected, random readings will be generated for ${duration} seconds`, 'Info');
+        const routeData: RouteData = {
+          dataSource: dataSource,
+          isAutoSync: isAutoSync,
+          gpsSensorId: gpsSensorId,
+          accelerometerSensorId: accelerometerSensorId,
+        };
+
+        this.dataConfigService.updateRouteData(routeData);
+
+        this.toastr.success(`Accelerometer data source selected, random readings will be generated.`, 'Info');
         this.dataConfigService.updateIsActive(true);
         this.setActiveTab.emit('live-data');
       }
     }
   }
 
+  /**
+   * Parses a coordinate string and returns an object containing latitude and longitude.
+   * 
+   * @param value - A string containing the latitude and longitude separated by a comma.
+   * @returns An object containing the latitude and longitude as numbers.
+   */
   private parseCoordinates(value: string): { lat: number; lon: number } {
     const [lat, lon] = value.split(',').map(coord => parseFloat(coord.trim()));
     return { lat, lon };
   }
 
+  /**
+   * Enables or disables the form based on the given boolean value.
+   * 
+   * @param disable - A boolean indicating whether to disable the form.
+   */
   private toggleFormState(disable: boolean): void {
     if (disable) {
       this.configForm.disable();
@@ -133,6 +185,11 @@ export class ConfigComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Updates the visibility of form fields based on the selected data source.
+   * 
+   * @param dataSourceValue - The selected data source value.
+   */
   private updateVisibility(dataSourceValue: number): void {
     this.showGpsSensorId = dataSourceValue === 1 || dataSourceValue === 3;
     this.showAccelerometerSensorId = dataSourceValue === 2 || dataSourceValue === 3;

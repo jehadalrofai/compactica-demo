@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, EventEmitter, OnDestroy, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastrService } from 'ngx-toastr';
-import { Subscription, interval } from 'rxjs';
+import { Subscription, finalize, interval, take } from 'rxjs';
 import * as L from 'leaflet';
 import * as turf from '@turf/turf';
 
@@ -13,6 +13,7 @@ import { ServerTimeService } from '../../services/server-time.service';
 import { AccelerometerData, AccelerometerReading } from '../../models/accelerometer-data.model';
 import { GpsData, GpsReading } from '../../models/gps-data.model';
 import { RouteData } from '../../models/route-data.model';
+import { environment } from '../../../environments/environment'; 
 
 interface CombinedReading {
   type: 'gps' | 'accelerometer';
@@ -34,24 +35,29 @@ interface CombinedReading {
   styleUrls: ['./data-tracker.component.scss']
 })
 export class DataTrackerComponent implements AfterViewInit, OnDestroy {
-  public combinedReadings: CombinedReading[] = [];  // Unified array
+  public combinedReadings: CombinedReading[] = [];
+  public lastGpsReading?: CombinedReading;
+  public lastAccelerometerReading?: CombinedReading;
   public coordinates: number[][] = [];
   public currentAccelerometerId: string = '';
   public currentGPSId: string = '';
   public currentServerTime: string = '';
   public disableSyncButton: boolean = true;
   public isAutoSync: boolean = false;
+  public isCompleted: boolean = false;
   public isRunning: boolean = false;
-  public selectedDataSource: number = 0; // Default to GPS only
+  public selectedDataSource: number = 0;
   public startButtonText: string = 'Start';
 
-  private accelerometerDuration: number = 0;
   private currentIndex: number = 0;
+  private intervalMs: number = environment.intervalMs ?? 2000;
   private map!: L.Map;
   private marker: L.Marker | null = null;
   private movementSubscription: Subscription | null = null;
+  private numberOfAccelReadings: number = environment.numberOfAccelReadings ?? 10
   private subscriptions = new Subscription();
   private routeLayer!: L.LayerGroup;
+  private routeMovingDistance: number = environment.routeMovingDistance ?? 50;
   private smallIcon: L.Icon = L.icon({
     iconUrl: '/marker-icon.png',
     iconSize: [25, 41],
@@ -71,24 +77,21 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     private serverTimeService: ServerTimeService,
     private toastr: ToastrService,
   ) {
+
+    // Subscribe to route data changes
     this.subscriptions.add(
       this.dataConfigService.currentRouteData.subscribe((data: RouteData | null) => {
         if (data) {
+          this.isAutoSync = data.isAutoSync;
           this.selectedDataSource = data.dataSource;
           this.currentGPSId = data.gpsSensorId;
           this.currentAccelerometerId = data.accelerometerSensorId;
           this.coordinates = data.coordinates || [];
-          if (this.selectedDataSource !== 2) {
-            this.initMap();
-            this.drawRoute(this.coordinates);
-          }
-          else{
-            this.accelerometerDuration = data.duration
-          }
         }
       })
     );
 
+    // Subscribe to server time updates
     this.subscriptions.add(
       this.serverTimeService.getLocalClock().subscribe(time => {
 				 
@@ -97,12 +100,23 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     );
   }
 
+  /**
+   * Lifecycle hook that is called after Angular has fully initialized the component's view.
+   * Initializes the map if the selected data source involves GPS data.
+   */
   ngAfterViewInit(): void {
     if (this.selectedDataSource === 1 || this.selectedDataSource === 3) {
       this.initMap();
+      if (this.coordinates.length > 0) {
+        this.drawRoute(this.coordinates);
+      }
     }
   }
 
+  /**
+   * Lifecycle hook that is called when the component is destroyed.
+   * Cleans up any subscriptions to prevent memory leaks.
+   */
   ngOnDestroy(): void {
     if (this.subscriptions) {
       this.subscriptions.unsubscribe();
@@ -113,6 +127,35 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     this.stopSimulation();
   }
 
+  /**
+   * Groups readings by their timestamp to display in a more organized manner.
+   * @returns An array of grouped readings, sorted by timestamp in descending order.
+   */
+  getGroupedReadings() {
+    const grouped = new Map<string, { gps?: CombinedReading; accelerometer?: CombinedReading }>();
+  
+    for (const reading of this.combinedReadings) {
+      if (!grouped.has(reading.dt)) {
+        grouped.set(reading.dt, {});
+      }
+      const group = grouped.get(reading.dt);
+      if (reading.type === 'gps') {
+        group!.gps = reading;
+      } else if (reading.type === 'accelerometer') {
+        group!.accelerometer = reading;
+      }
+    }
+  
+    return Array.from(grouped.values()).sort((a, b) => {
+      const dtA = a.gps?.dt || a.accelerometer?.dt;
+      const dtB = b.gps?.dt || b.accelerometer?.dt;
+      return new Date(dtB!).getTime() - new Date(dtA!).getTime();
+    });
+  }
+  
+  /**
+   * Repositions the map marker to the first coordinate in the list.
+   */
   private repositionMarker(): void {
     if (this.coordinates.length > 0 && (this.selectedDataSource !== 2)) {
       const [initialLon, initialLat] = this.coordinates[0];
@@ -125,6 +168,9 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Resets the simulation, clearing the state and resetting the map.
+   */
   public resetSimulation(): void {
     this.stopSimulation();
     this.resetState();
@@ -135,22 +181,30 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     this.setActiveTab.emit('configurations');
   }
 
+  /**
+   * Resets the internal state of the component, clearing readings and resetting the UI.
+   */
   private resetState(): void {
     this.combinedReadings = [];
     this.currentIndex = 0;
     this.isRunning = false;
+    this.isCompleted = false;
     this.startButtonText = 'Start';
   }
 
+  /**
+   * Starts the simulation based on the selected data source, either moving the map marker
+   * or simulating accelerometer readings.
+   */
   public startSimulation(): void {
     this.serverTimeService.syncLocalClock().subscribe(
       () => {
+        this.isRunning = true;
         if ((this.selectedDataSource === 1 || this.selectedDataSource === 3) && this.coordinates.length > 0) {
           if (!this.marker && this.currentIndex < this.coordinates.length && (this.selectedDataSource === 1 || this.selectedDataSource === 3)) {
             const [lon, lat] = this.coordinates[this.currentIndex];
             this.marker = L.marker([lat, lon], { icon: this.smallIcon }).addTo(this.map);
           }
-          this.isRunning = true;
           this.simulateGPSMovement();
         } else if (this.selectedDataSource === 2) {
           this.simulateAccelerometerReadings();
@@ -165,6 +219,9 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     );
   }
 
+  /**
+   * Stops the ongoing simulation and pauses the marker movement or accelerometer readings.
+   */
   public stopSimulation(): void {
     if (this.movementSubscription) {
       this.movementSubscription.unsubscribe();
@@ -174,6 +231,9 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Submits the collected data to the backend services, sending GPS and/or accelerometer data.
+   */
   public submitData(): void {
     if (this.selectedDataSource === 1 || this.selectedDataSource === 3) {
       const gpsData: GpsData = {
@@ -198,6 +258,12 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Adds a random accelerometer reading to the list of combined readings.
+   * If auto-sync is enabled, it submits the data immediately.
+   * 
+   * @param currentTime - The current timestamp.
+   */
   private addRandomAccelerometerReading(currentTime: string): void {
     const newReading: CombinedReading = {
       type: 'accelerometer',
@@ -209,7 +275,7 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     };
 
     this.combinedReadings.push(newReading);
-
+    this.lastAccelerometerReading = newReading;
     if (this.isAutoSync) {
       const accelerometerData: AccelerometerData = {
         Data: [newReading as AccelerometerReading],
@@ -219,6 +285,11 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Draws the route on the map based on the provided coordinates.
+   * 
+   * @param coordinates - An array of coordinates representing the route.
+   */
   private drawRoute(coordinates: number[][]): void {
     this.routeLayer.clearLayers();
 
@@ -228,10 +299,24 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     this.map.fitBounds(polyline.getBounds());
   }
 
+  /**
+   * Generates a random value within the specified range.
+   * 
+   * @param min - The minimum value.
+   * @param max - The maximum value.
+   * @returns A random number between min and max.
+   */
   private getRandomValue(min: number, max: number): number {
     return Math.random() * (max - min) + min;
   }
 
+  /**
+   * Calculates the Haversine distance between two geographic coordinates.
+   * 
+   * @param coord1 - The first coordinate.
+   * @param coord2 - The second coordinate.
+   * @returns The distance in meters between the two coordinates.
+   */
   private haversineDistance(coord1: number[], coord2: number[]): number {
     const toRad = (x: number) => (x * Math.PI) / 180;
     const lat1 = coord1[1];
@@ -253,6 +338,9 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     return R * c;
   }
 
+  /**
+   * Initializes the map with a given center and zoom level.
+   */
   private initMap(): void {
     this.map = L.map('map', {
       center: [39.8282, -98.5795],
@@ -269,15 +357,33 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     this.routeLayer = L.layerGroup().addTo(this.map);
   }
 
+  /**
+   * Simulates accelerometer readings by generating random values at regular intervals.
+   */
   private simulateAccelerometerReadings(): void {
-    this.movementSubscription = interval(1000).subscribe(() => {
-      this.addRandomAccelerometerReading(this.currentServerTime);
+    this.movementSubscription = interval(this.intervalMs)
+      .pipe(
+        take(this.numberOfAccelReadings), 
+        finalize(() => {
+          this.stopSimulation();
+
+          this.isCompleted = true;
+          if (!this.isAutoSync) {
+            this.disableSyncButton = false;
+          }
+        })
+      )
+      .subscribe(() => {
+        this.addRandomAccelerometerReading(this.currentServerTime);
     });
   }
 
+  /**
+   * Simulates GPS movement along a predefined route by moving the marker at regular intervals.
+   */
   private simulateGPSMovement(): void {
-    this.movementSubscription = interval(1000).subscribe(() => {
-      let remainingMoveDistance = 10; // Desired move distance in meters
+    this.movementSubscription = interval(this.intervalMs).subscribe(() => {
+      let remainingMoveDistance = this.routeMovingDistance;
 
       while (remainingMoveDistance > 0 && this.currentIndex < this.coordinates.length - 1) {
         const currentPoint = turf.point(this.coordinates[this.currentIndex]);
@@ -297,7 +403,7 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
           }
         } else {
           const bearing = turf.bearing(currentPoint, nextPoint);
-          const destination = turf.destination(currentPoint, remainingMoveDistance / 1000, bearing); // moveDistance in km
+          const destination = turf.destination(currentPoint, remainingMoveDistance / 1000, bearing);
           const newLat = destination.geometry.coordinates[1];
           const newLon = destination.geometry.coordinates[0];
 
@@ -313,6 +419,8 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
 
       if (this.currentIndex >= this.coordinates.length - 1) {
         this.stopSimulation();
+
+        this.isCompleted = true;
         if (!this.isAutoSync) {
           this.disableSyncButton = false;
         }
@@ -331,6 +439,7 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
               dt: currentTime,
             };
             this.combinedReadings.push(newPosition);
+            this.lastGpsReading = newPosition;
             if (this.isAutoSync) {
               const gpsData: GpsData = {
                 Data: [newPosition as GpsReading],
@@ -348,6 +457,11 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Submits the accelerometer data to the backend service.
+   * 
+   * @param accelerometerData - The data to be submitted.
+   */
   private submitAccelerometerData(accelerometerData: AccelerometerData): void {
     if (this.selectedDataSource === 2 || this.selectedDataSource === 3) {
       this.accelerometerService.sendAccelerometerData(accelerometerData).subscribe(
@@ -363,6 +477,11 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Submits the GPS data to the backend service.
+   * 
+   * @param gpsData - The data to be submitted.
+   */
   private submitGPSData(gpsData: GpsData): void {
     if (this.selectedDataSource === 1 || this.selectedDataSource === 3) {
       this.gpsService.sendGpsData(gpsData).subscribe(
@@ -377,16 +496,15 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
       );
     }
   }
-
+  
+  /**
+   * Updates the sync status of the readings after data submission.
+   * 
+   * @param type - The type of data being synced ('gps' or 'accelerometer').
+   * @param readings - The readings to be updated.
+   */
   private updateSyncStatus(type: 'gps' | 'accelerometer', readings: CombinedReading[]): void {
     if (this.isAutoSync) {
-      this.combinedReadings.forEach(reading => {
-        if (reading.type === type) {
-          reading.isSynced = true;
-        }
-      });
-      this.disableSyncButton = true;
-    } else {
       const [firstReading] = readings;
       const matchingReading = this.combinedReadings.find(r =>
         r.dt === firstReading.dt &&
@@ -397,6 +515,13 @@ export class DataTrackerComponent implements AfterViewInit, OnDestroy {
       if (matchingReading) {
         matchingReading.isSynced = true;
       }
+    } else {
+      this.combinedReadings.forEach(reading => {
+        if (reading.type === type) {
+          reading.isSynced = true;
+        }
+      });
+      this.disableSyncButton = true;
     }
   }
 }
